@@ -188,10 +188,8 @@ jobs:
         run: unzip -q ogspy.zip -d ogspy/
 
       # ── Upload files to Infomaniak over SSH (rsync) ──
-      - name: Load SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.INFOMANIAK_SSH_KEY }}
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
 
       - name: Trust SSH host key
         run: |
@@ -203,11 +201,13 @@ jobs:
         with:
           host: ${{ secrets.INFOMANIAK_SSH_HOST }}
           username: ${{ secrets.INFOMANIAK_SSH_USER }}
-          key: ${{ secrets.INFOMANIAK_SSH_KEY }}
+          password: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
           script: |
             mkdir -p "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
 
       - name: Deploy files via rsync over SSH
+        env:
+          SSHPASS: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
         run: |
           TARGET_DIR="${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
           rsync -az --delete \
@@ -217,7 +217,7 @@ jobs:
             --exclude='install/install.lock' \
             --exclude='cache/**' \
             --exclude='logs/**' \
-            -e "ssh -o StrictHostKeyChecking=yes" \
+            -e "sshpass -e ssh -o StrictHostKeyChecking=no" \
             ./ogspy/ "${{ secrets.INFOMANIAK_SSH_USER }}@${{ secrets.INFOMANIAK_SSH_HOST }}:${TARGET_DIR}/"
 
       # ── Install (first deploy) then upgrade via SSH CLI ──
@@ -234,7 +234,7 @@ jobs:
         with:
           host: ${{ secrets.INFOMANIAK_SSH_HOST }}
           username: ${{ secrets.INFOMANIAK_SSH_USER }}
-          key: ${{ secrets.INFOMANIAK_SSH_KEY }}
+          password: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
           envs: OGSPY_DB_HOST,OGSPY_DB_USER,OGSPY_DB_PASSWORD,OGSPY_DB_NAME,OGSPY_ADMIN_USER,OGSPY_ADMIN_PASSWORD,OGSPY_TABLE_PREFIX
           script: |
             cd "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"

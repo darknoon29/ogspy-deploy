@@ -56,7 +56,7 @@ Go to **Settings → Secrets and variables → Actions** and add the following s
 | `INFOMANIAK_DEPLOY_PATH` | Absolute remote path to the base directory (e.g. `/sites/mysite.com/public_html/`). Each alliance will get its own subfolder here. |
 | `INFOMANIAK_SSH_HOST` | SSH hostname from Infomaniak panel |
 | `INFOMANIAK_SSH_USER` | SSH username |
-| `INFOMANIAK_SSH_KEY` | SSH **private key** (PEM format, Ed25519 or RSA) |
+| `INFOMANIAK_SSH_PASSWORD` | SSH password |
 | `OGSPY_DB_HOST` | MySQL/MariaDB hostname |
 | `OGSPY_DB_USER` | Database username |
 | `OGSPY_DB_PASSWORD` | Database password |
@@ -70,16 +70,6 @@ Go to **Settings → Secrets and variables → Actions** and add the following s
 4. Repository access: Only `OGSteam/ogspy`
 5. Permissions → Repository permissions → **Contents**: Read-only
 6. Copy the token and save it as `OGSPY_GITHUB_TOKEN`
-
-#### Generating the SSH key pair
-
-```bash
-ssh-keygen -t ed25519 -C "ogspy-deploy@github-actions" -f ogspy_deploy_key
-```
-
-- Add the **public key** (`ogspy_deploy_key.pub`) to your Infomaniak SSH keys  
-  (Infomaniak Manager → Hosting → SSH keys)
-- Add the **private key** (`ogspy_deploy_key` file contents) as the `INFOMANIAK_SSH_KEY` secret
 
 ---
 
@@ -187,7 +177,7 @@ The rsync deploy step **never overwrites** the following remote files (they cont
 | Symptom | Likely cause |
 |---|---|
 | Download step fails with "No release found" | No published (non-draft) release exists on OGSteam/ogspy; publish the draft first |
-| rsync step fails with "Permission denied" | Public key not added to Infomaniak, or wrong `INFOMANIAK_SSH_USER` |
+| rsync step fails with "Permission denied" | Check SSH credentials: `INFOMANIAK_SSH_HOST`, `INFOMANIAK_SSH_USER`, `INFOMANIAK_SSH_PASSWORD` |
 | Install CLI fails with missing secrets | Check that `OGSPY_DB_HOST`, `OGSPY_DB_USER`, `OGSPY_DB_PASSWORD`, `OGSPY_DB_NAME` are properly configured |
 | Install CLI fails with DB connection error | Verify database credentials and that the database exists |
 | `upgrade_cli.php` returns an error | Check the full SSH output in the Actions log; may be a PHP version or DB connectivity issue |
