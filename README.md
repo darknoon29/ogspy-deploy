@@ -64,6 +64,9 @@ A: Seuls les collaborateurs autorisés du dépôt (write/admin), avec validation
 Q: Le déploiement écrase-t-il ma configuration?
 A: Non, les fichiers sensibles de configuration et de runtime sont préservés par le workflow.
 
+Q: Puis-je redemander un déploiement avec un nom d'alliance déjà créé?
+A: Non. Le workflow refuse maintenant la demande si le dossier de cette alliance existe déjà côté serveur.
+
 Q: Dois-je changer le mot de passe admin par défaut?
 A: Oui, immédiatement après la première connexion.
 
@@ -121,6 +124,9 @@ A: Only authorized repository collaborators (write/admin), with manual owner app
 
 Q: Does deployment overwrite my instance config?
 A: No. Sensitive config and runtime files are preserved by the workflow.
+
+Q: Can I request deployment again with an alliance name that already exists?
+A: No. The workflow now rejects the request if that alliance folder already exists on the server.
 
 Q: Should I change the default admin password?
 A: Yes, immediately after first login.

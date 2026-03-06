@@ -78,6 +78,7 @@ jobs:
       alliance: ${{ steps.parse.outputs.alliance }}
       alliance_dir: ${{ steps.parse.outputs.alliance_dir }}
       table_prefix: ${{ steps.parse.outputs.table_prefix }}
+      duplicate_alliance: ${{ steps.uniqueness.outputs.is_duplicate }}
     steps:
       # ── Parse alliance from issue form ──
       - name: Parse deployment inputs
@@ -160,6 +161,21 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.INFOMANIAK_SSH_HOST }}" >> ~/.ssh/known_hosts
 
+      # ── Refuse duplicate deployments for an already-created alliance ──
+      - name: Refuse deployment if alliance already exists
+        id: uniqueness
+        env:
+          SSHPASS: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
+        run: |
+          TARGET_DIR="${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.alliance_dir) }}"
+          echo "is_duplicate=false" >> "$GITHUB_OUTPUT"
+
+          if sshpass -e ssh -o StrictHostKeyChecking=no "${{ secrets.INFOMANIAK_SSH_USER }}@${{ secrets.INFOMANIAK_SSH_HOST }}" "test -d '$TARGET_DIR'"; then
+            echo "is_duplicate=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Deployment refused: alliance '${{ steps.parse.outputs.alliance }}' already exists at $TARGET_DIR."
+            exit 1
+          fi
+
       - name: Ensure target directory exists
         uses: appleboy/ssh-action@v1.2.5
         with:
@@ -226,7 +242,8 @@ jobs:
                 "" \
                 "$OGSPY_TABLE_PREFIX"
             else
-              echo "Existing installation detected (config/id.php present)."
+              echo "::error::Deployment refused: existing installation detected (config/id.php present)."
+              exit 1
             fi
 
             php install/upgrade_cli.php upgrade
@@ -290,18 +307,32 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const duplicateAlliance = '${{ needs.deploy.outputs.duplicate_alliance }}' === 'true';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const body = duplicateAlliance
+              ? [
+                  '## 🚫 Deployment Refused',
+                  '',
+                  'An OGSpy instance with this alliance name already exists. Duplicate-name deployments are not allowed.',
+                  '',
+                  'Please use a different alliance name if you need a new instance.',
+                  '',
+                  `**Workflow run:** [#${context.runId}](${runUrl})`,
+                ].join('\n')
+              : [
+                  '## ❌ Deployment Failed',
+                  '',
+                  'The deployment encountered an error. Review the workflow logs for details.',
+                  '',
+                  `**Workflow run:** [#${context.runId}](${runUrl})`,
+                ].join('\n');
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: [
-                '## ❌ Deployment Failed',
-                '',
-                'The deployment encountered an error. Review the workflow logs for details.',
-                '',
-                `**Workflow run:** [#${context.runId}](${runUrl})`,
-              ].join('\n'),
+              body,
             });
 
       - name: Comment – rejected / cancelled

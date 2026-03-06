@@ -34,8 +34,8 @@ A deployment is triggered by opening an issue with a specific form, and **requir
 8. Files are deployed to alliance-specific folder via SSH (rsync)
    (config files, cache, and logs are never overwritten)
         ↓
-9. If first deployment: CLI installer runs to set up the database
-   Otherwise: CLI upgrader runs to update the installation
+9. Deployment is refused if the alliance folder already exists (to avoid duplicate-name redeployments)
+10. If new alliance: CLI installer runs to set up the database, then CLI upgrader runs
         ↓
 10. Result (success / failure / rejected) is posted as a comment and the issue is closed
 ```
@@ -136,10 +136,10 @@ When deploying a new alliance, the workflow automatically:
 3. Runs the CLI installer to set up the database
 4. Creates the admin account
 
-### Subsequent deployments
-For existing alliances:
-1. Updates files via rsync
-2. Runs the CLI upgrader to apply database migrations
+### Duplicate alliance names
+If the target alliance folder already exists on the server, the workflow stops with an error and does not deploy.
+
+This behavior prevents accidental redeployments when a deployment request reuses an alliance name that has already been created.
 
 ## Files protected from overwrite
 
