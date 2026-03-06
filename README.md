@@ -141,7 +141,7 @@ The workflow starts immediately, just as if the label had been applied.
 
 Each alliance gets:
 - **Dedicated folder**: `<INFOMANIAK_DEPLOY_PATH>/<alliance-name>/`
-- **Unique table prefix**: Database tables use `<alliance-name>_` prefix
+- **Unique table prefix**: Database tables use `<alliance-name>_` prefix (e.g., `furieux_users`, `furieux_planets`)
 - **Separate configuration**: Each instance has its own `config/id.php`
 - **Admin credentials**:
   - Username: Alliance name (as entered in the form)

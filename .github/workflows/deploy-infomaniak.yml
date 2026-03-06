@@ -143,9 +143,9 @@ jobs:
               .normalize('NFD')
               .replace(/[\u0300-\u036f]/g, '')
               .toLowerCase()
-              .replace(/[^a-z]+/g, '');
+              .replace(/[^a-z]+/g, '') + '_';
 
-            if (!tablePrefix) {
+            if (tablePrefix === '_') {
               core.setFailed(`Alliance name "${alliance}" does not contain any valid letters for table prefix.`);
               return;
             }
@@ -203,13 +203,13 @@ jobs:
           username: ${{ secrets.INFOMANIAK_SSH_USER }}
           password: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
           script: |
-            mkdir -p "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
+            mkdir -p "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.alliance_dir) }}"
 
       - name: Deploy files via rsync over SSH
         env:
           SSHPASS: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
         run: |
-          TARGET_DIR="${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
+          TARGET_DIR="${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.alliance_dir) }}"
           rsync -az --delete \
             --exclude='config/id.php' \
             --exclude='config/key.php' \
@@ -237,7 +237,7 @@ jobs:
           password: ${{ secrets.INFOMANIAK_SSH_PASSWORD }}
           envs: OGSPY_DB_HOST,OGSPY_DB_USER,OGSPY_DB_PASSWORD,OGSPY_DB_NAME,OGSPY_ADMIN_USER,OGSPY_ADMIN_PASSWORD,OGSPY_TABLE_PREFIX
           script: |
-            cd "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
+            cd "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.alliance_dir) }}"
 
             # Ensure required directories exist with write permissions
             echo "Ensuring required directories exist with proper permissions..."
@@ -286,6 +286,7 @@ jobs:
           script: |
             const version = '${{ needs.deploy.outputs.version }}';
             const alliance = '${{ needs.deploy.outputs.alliance }}';
+            const allianceDir = '${{ needs.deploy.outputs.alliance_dir }}';
             const tablePrefix = '${{ needs.deploy.outputs.table_prefix }}';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             await github.rest.issues.createComment({
@@ -297,7 +298,7 @@ jobs:
                 '',
                 `**Version deployed:** \`${version}\``,
                 `**Alliance:** ${alliance}`,
-                `**Target folder:** \`${tablePrefix}\``,
+                `**Target folder:** \`${allianceDir}\``,
                 `**Table prefix:** \`${tablePrefix}\``,
                 `**Target:** Infomaniak (production)`,
                 '',
