@@ -12,6 +12,13 @@ body:
         Submitting this form will trigger a deployment workflow.
         **No files will be deployed until the owner manually approves the request.**
 
+        > 💡 **Tip — trigger from the issue:** After opening this ticket you can also kick off
+        > (or re-trigger) a deployment at any time by posting a comment that starts with:
+        > ```
+        > /deploy
+        > ```
+        > Optionally specify a version: `/deploy 4.0.2`
+
   - type: input
     id: version
     attributes:
