@@ -239,6 +239,11 @@ jobs:
           script: |
             cd "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
 
+            # Ensure required directories exist with write permissions
+            echo "Ensuring required directories exist with proper permissions..."
+            mkdir -p cache logs config
+            chmod 755 cache logs config
+
             if [ ! -f "config/id.php" ]; then
               echo "No config/id.php found. Running first-time OGSpy installation via CLI..."
 
