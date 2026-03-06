@@ -1,8 +1,12 @@
 # ogspy-deploy
 
-Private repository containing the GitHub Actions workflow that deploys [OGSpy](https://github.com/OGSteam/ogspy) to Infomaniak shared hosting.
+Repository containing the GitHub Actions workflow that deploys [OGSpy](https://github.com/OGSteam/ogspy) to Infomaniak shared hosting.
 
 A deployment is triggered by opening an issue with a specific form, and **requires manual approval from the owner** before any files are transferred.
+
+> **Repository visibility:** This repository must be **public** so that any GitHub user can open a deployment-request issue (ticket). The deployment is still fully protected because:
+> 1. Only users with at least **Write** access can actually trigger the workflow (the first job checks the issue author's permission level and stops immediately for everyone else).
+> 2. Even for authorized users, every deployment is **paused** until the owner manually approves it through the `infomaniak-production` environment gate.
 
 ---
 

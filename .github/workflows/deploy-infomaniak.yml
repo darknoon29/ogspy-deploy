@@ -18,6 +18,28 @@ jobs:
     if: github.event.label.name == 'deploy'
     runs-on: ubuntu-latest
     steps:
+      # ── Guard: only collaborators with Write / Admin access may trigger ──
+      - name: Check author permission
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const author = context.payload.issue.user.login;
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: author,
+            });
+            const allowed = ['admin', 'write'];
+            if (!allowed.includes(data.permission)) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `## 🚫 Unauthorized\n\n@${author} — only repository collaborators with **Write** or **Admin** access can request a deployment.`,
+              });
+              core.setFailed(`User ${author} (permission: ${data.permission}) is not authorized to request a deployment.`);
+            }
+
       - name: Comment on issue
         uses: actions/github-script@v7
         with:
