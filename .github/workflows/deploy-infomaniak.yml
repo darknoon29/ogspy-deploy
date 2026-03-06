@@ -84,17 +84,22 @@ jobs:
     runs-on: ubuntu-latest
     # This environment has "Required reviewers" configured → the job
     # pauses here and sends an approval notification to the owner.
-    environment: infomaniak-production
     outputs:
       version: ${{ steps.release.outputs.version }}
+      alliance: ${{ steps.parse.outputs.alliance }}
+      alliance_dir: ${{ steps.parse.outputs.alliance_dir }}
+      table_prefix: ${{ steps.parse.outputs.table_prefix }}
     steps:
-      # ── Parse the version from the comment ("/deploy [version]") or the issue form ──
-      - name: Parse version
+      # ── Parse the version and alliance from the comment / issue form ──
+      - name: Parse deployment inputs
         id: parse
         uses: actions/github-script@v7
         with:
           script: |
             let version = '';
+            let alliance = '';
+
+            const body = context.payload.issue.body || '';
 
             if (context.eventName === 'issue_comment') {
               // Support: /deploy [version]  — version is optional
@@ -105,13 +110,50 @@ jobs:
 
             if (!version) {
               // Fall back to the "Version" field in the issue form body
-              const body = context.payload.issue.body || '';
               // GitHub issue forms render each field as "### Label\n\nValue"
               const versionMatch = body.match(/### Version[^\n]*\n+([^\n#]+)/);
               if (versionMatch) version = versionMatch[1].trim();
             }
 
+            // Read alliance from issue form (supports English and French labels).
+            const allianceMatch = body.match(/### (?:Alliance Name|Nom de l'Alliance)[^\n]*\n+([^\n#]+)/i);
+            if (allianceMatch) alliance = allianceMatch[1].trim();
+
+            if (!alliance) {
+              core.setFailed('Missing alliance name in issue form.');
+              return;
+            }
+
+            // Build a safe folder name from the alliance value.
+            const allianceDir = alliance
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-zA-Z0-9._-]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/(^[-.]+|[-.]+$)/g, '')
+              .toLowerCase();
+
+            if (!allianceDir) {
+              core.setFailed(`Alliance name "${alliance}" cannot be converted to a valid folder name.`);
+              return;
+            }
+
+            // Table prefix must be alliance name in lowercase letters only.
+            const tablePrefix = alliance
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase()
+              .replace(/[^a-z]+/g, '');
+
+            if (!tablePrefix) {
+              core.setFailed(`Alliance name "${alliance}" does not contain any valid letters for table prefix.`);
+              return;
+            }
+
             core.setOutput('version', version);
+            core.setOutput('alliance', alliance);
+            core.setOutput('alliance_dir', allianceDir);
+            core.setOutput('table_prefix', tablePrefix);
 
             // If a version was explicitly given, make sure it looks like a valid tag.
             if (version && !/^v?\d+(\.\d+)*(-[a-zA-Z0-9._-]+)?$/.test(version)) {
@@ -145,33 +187,79 @@ jobs:
       - name: Extract release archive
         run: unzip -q ogspy.zip -d ogspy/
 
-      # ── Upload files to Infomaniak via FTPS ──
-      - name: Deploy files via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+      # ── Upload files to Infomaniak over SSH (rsync) ──
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          server: ${{ secrets.INFOMANIAK_FTP_HOST }}
-          username: ${{ secrets.INFOMANIAK_FTP_USER }}
-          password: ${{ secrets.INFOMANIAK_FTP_PASSWORD }}
-          local-dir: ./ogspy/
-          server-dir: ${{ secrets.INFOMANIAK_DEPLOY_PATH }}
-          # Protect user-specific and runtime files from being overwritten
-          exclude: |
-            config/id.php
-            config/key.php
-            config/salt
-            install/install.lock
-            cache/**
-            logs/**
+          ssh-private-key: ${{ secrets.INFOMANIAK_SSH_KEY }}
 
-      # ── Run the CLI upgrader on the remote server via SSH ──
-      - name: Run upgrade CLI via SSH
+      - name: Trust SSH host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.INFOMANIAK_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Ensure target directory exists
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.INFOMANIAK_SSH_HOST }}
           username: ${{ secrets.INFOMANIAK_SSH_USER }}
           key: ${{ secrets.INFOMANIAK_SSH_KEY }}
           script: |
-            cd "${{ secrets.INFOMANIAK_DEPLOY_PATH }}"
+            mkdir -p "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
+
+      - name: Deploy files via rsync over SSH
+        run: |
+          TARGET_DIR="${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
+          rsync -az --delete \
+            --exclude='config/id.php' \
+            --exclude='config/key.php' \
+            --exclude='config/salt' \
+            --exclude='install/install.lock' \
+            --exclude='cache/**' \
+            --exclude='logs/**' \
+            -e "ssh -o StrictHostKeyChecking=yes" \
+            ./ogspy/ "${{ secrets.INFOMANIAK_SSH_USER }}@${{ secrets.INFOMANIAK_SSH_HOST }}:${TARGET_DIR}/"
+
+      # ── Install (first deploy) then upgrade via SSH CLI ──
+      - name: Run install/upgrade CLI via SSH
+        env:
+          OGSPY_DB_HOST: ${{ secrets.OGSPY_DB_HOST }}
+          OGSPY_DB_USER: ${{ secrets.OGSPY_DB_USER }}
+          OGSPY_DB_PASSWORD: ${{ secrets.OGSPY_DB_PASSWORD }}
+          OGSPY_DB_NAME: ${{ secrets.OGSPY_DB_NAME }}
+          OGSPY_ADMIN_USER: ${{ steps.parse.outputs.alliance }}
+          OGSPY_ADMIN_PASSWORD: ogsteam
+          OGSPY_TABLE_PREFIX: ${{ steps.parse.outputs.table_prefix }}
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.INFOMANIAK_SSH_HOST }}
+          username: ${{ secrets.INFOMANIAK_SSH_USER }}
+          key: ${{ secrets.INFOMANIAK_SSH_KEY }}
+          envs: OGSPY_DB_HOST,OGSPY_DB_USER,OGSPY_DB_PASSWORD,OGSPY_DB_NAME,OGSPY_ADMIN_USER,OGSPY_ADMIN_PASSWORD,OGSPY_TABLE_PREFIX
+          script: |
+            cd "${{ format('{0}/{1}', secrets.INFOMANIAK_DEPLOY_PATH, steps.parse.outputs.table_prefix) }}"
+
+            if [ ! -f "config/id.php" ]; then
+              echo "No config/id.php found. Running first-time OGSpy installation via CLI..."
+
+              if [ -z "$OGSPY_DB_HOST" ] || [ -z "$OGSPY_DB_USER" ] || [ -z "$OGSPY_DB_PASSWORD" ] || [ -z "$OGSPY_DB_NAME" ]; then
+                echo "::error::Missing required secrets for first-time install. Expected: OGSPY_DB_HOST, OGSPY_DB_USER, OGSPY_DB_PASSWORD, OGSPY_DB_NAME."
+                exit 1
+              fi
+
+              php install/upgrade_cli.php install \
+                "$OGSPY_DB_HOST" \
+                "$OGSPY_DB_USER" \
+                "$OGSPY_DB_PASSWORD" \
+                "$OGSPY_DB_NAME" \
+                "$OGSPY_ADMIN_USER" \
+                "$OGSPY_ADMIN_PASSWORD" \
+                "" \
+                "$OGSPY_TABLE_PREFIX"
+            else
+              echo "Existing installation detected (config/id.php present)."
+            fi
+
             php install/upgrade_cli.php upgrade
 
   # ────────────────────────────────────────────────────────────────
@@ -192,6 +280,8 @@ jobs:
         with:
           script: |
             const version = '${{ needs.deploy.outputs.version }}';
+            const alliance = '${{ needs.deploy.outputs.alliance }}';
+            const tablePrefix = '${{ needs.deploy.outputs.table_prefix }}';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -201,6 +291,9 @@ jobs:
                 '## ✅ Deployment Successful',
                 '',
                 `**Version deployed:** \`${version}\``,
+                `**Alliance:** ${alliance}`,
+                `**Target folder:** \`${tablePrefix}\``,
+                `**Table prefix:** \`${tablePrefix}\``,
                 `**Target:** Infomaniak (production)`,
                 '',
                 `**Workflow run:** [#${context.runId}](${runUrl})`,

@@ -1,0 +1,22 @@
+name: Demande de déploiement
+description: Demander un déploiement d'OGSpy
+labels:
+  - deploy
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🚀 Demande de déploiement OGSpy
+
+        La soumission de ce formulaire déclenchera un déploiement.
+        **Aucun fichier ne sera déployé tant que le propriétaire n'aura pas approuvé manuellement la demande.**
+
+  - type: textarea
+    id: alliance
+    attributes:
+      label: Nom de l'Alliance
+      description: Le nom de l'alliance pour laquelle le déploiement est demandé.
+      placeholder: "ex. Fédération Galactique"
+    validations:
+      required: true
