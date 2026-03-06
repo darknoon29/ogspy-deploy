@@ -1,8 +1,12 @@
 # ogspy-deploy
 
-Private repository containing the GitHub Actions workflow that deploys [OGSpy](https://github.com/OGSteam/ogspy) to Infomaniak shared hosting.
+Repository containing the GitHub Actions workflow that deploys [OGSpy](https://github.com/OGSteam/ogspy) to Infomaniak shared hosting.
 
 A deployment is triggered by opening an issue with a specific form, and **requires manual approval from the owner** before any files are transferred.
+
+> **Repository visibility:** This repository must be **public** so that any GitHub user can open a deployment-request issue (ticket). The deployment is still fully protected because:
+> 1. Only users with at least **Write** access can actually trigger the workflow (the first job checks the issue author's permission level and stops immediately for everyone else).
+> 2. Even for authorized users, every deployment is **paused** until the owner manually approves it through the `infomaniak-production` environment gate.
 
 ---
 
@@ -11,20 +15,26 @@ A deployment is triggered by opening an issue with a specific form, and **requir
 ```
 1. Open an issue using the "Deployment Request" template
         ↓
-2. Workflow acknowledges the request (posts a comment on the issue)
+   The "deploy" label is auto-applied → workflow starts automatically
+   — OR —
+   Post a "/deploy [version]" comment on an existing open issue → workflow starts
         ↓
-3. Workflow pauses — owner receives an approval notification
+2. Workflow checks that the trigger author has Write / Admin access
         ↓
-4. Owner approves (or rejects) the deployment in the Actions tab
+3. Workflow acknowledges the request (posts a comment on the issue)
         ↓
-5. Workflow downloads the requested OGSpy release from OGSteam/ogspy
+4. Workflow pauses — owner receives an approval notification
         ↓
-6. Files are deployed to Infomaniak via FTPS
+5. Owner approves (or rejects) the deployment in the Actions tab
+        ↓
+6. Workflow downloads the requested OGSpy release from OGSteam/ogspy
+        ↓
+7. Files are deployed to Infomaniak via FTPS
    (config files, cache, and logs are never overwritten)
         ↓
-7. CLI upgrader runs on the server via SSH: php install/upgrade_cli.php upgrade
+8. CLI upgrader runs on the server via SSH: php install/upgrade_cli.php upgrade
         ↓
-8. Result (success / failure / rejected) is posted as a comment and the issue is closed
+9. Result (success / failure / rejected) is posted as a comment and the issue is closed
 ```
 
 ---
@@ -86,16 +96,37 @@ This is what causes the workflow to pause and notify you before deploying.
 3. Color: choose any (e.g. `#0075ca`)
 4. Save
 
-The workflow only activates when this exact label is applied to an issue.
+The workflow activates when this exact label is applied to an issue, or when a `/deploy` comment is posted on an open issue.
 
 ---
 
 ## Deploying
 
+### Option A — open a new issue (recommended for new requests)
+
 1. Click **Issues → New issue**
 2. Select the **"Deployment Request"** template
 3. Fill in the form (version is optional; leave blank to deploy the latest release)
-4. Submit — the workflow starts immediately and posts an acknowledgement comment
+4. Submit — the `deploy` label is auto-applied, which starts the workflow immediately and posts an acknowledgement comment
+
+### Option B — comment command on an existing issue
+
+Post a comment on any **open** deployment-request issue:
+
+```
+/deploy
+```
+
+Optionally include a specific version tag:
+
+```
+/deploy 4.0.2
+```
+
+The workflow starts immediately, just as if the label had been applied.  
+**Option A** checks the **issue author's** permissions; **Option B** checks the **comment author's** permissions. In both cases the actor must have **Write** or **Admin** access to the repository.
+
+---
 
 **To approve:** go to the **Actions** tab, open the running workflow, and click **Review deployments → Approve**.
 
