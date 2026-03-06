@@ -1,14 +1,10 @@
 name: Deploy OGSpy to Infomaniak
 
-# Triggered in two ways:
-#   1. When the "deploy" label is applied to an issue (auto-applied by the issue template).
-#   2. When an authorized collaborator posts a "/deploy [version]" comment on an open issue.
+# Triggered when the "deploy" label is applied to an issue (auto-applied by the issue template).
 # The deployment is gated behind a GitHub Environment with required reviewer approval.
 on:
   issues:
     types: [labeled]
-  issue_comment:
-    types: [created]
 
 permissions:
   issues: write  # post comments and close issues
@@ -22,9 +18,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────
   notify:
     name: Acknowledge request
-    if: >-
-      (github.event_name == 'issues' && github.event.label.name == 'deploy') ||
-      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/deploy') && github.event.issue.state == 'open')
+    if: github.event_name == 'issues' && github.event.label.name == 'deploy'
     runs-on: ubuntu-latest
     steps:
       # ── Guard: only collaborators with Write / Admin access may trigger ──
@@ -32,10 +26,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // For comment triggers the relevant author is the commenter, not the issue opener.
-            const author = context.eventName === 'issue_comment'
-              ? context.payload.comment.user.login
-              : context.payload.issue.user.login;
+            const author = context.payload.issue.user.login;
             const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -78,9 +69,7 @@ jobs:
   deploy:
     name: Deploy to Infomaniak
     needs: notify
-    if: >-
-      (github.event_name == 'issues' && github.event.label.name == 'deploy') ||
-      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/deploy') && github.event.issue.state == 'open')
+    if: github.event_name == 'issues' && github.event.label.name == 'deploy'
     runs-on: ubuntu-latest
     # This environment has "Required reviewers" configured → the job
     # pauses here and sends an approval notification to the owner.
@@ -90,30 +79,15 @@ jobs:
       alliance_dir: ${{ steps.parse.outputs.alliance_dir }}
       table_prefix: ${{ steps.parse.outputs.table_prefix }}
     steps:
-      # ── Parse the version and alliance from the comment / issue form ──
+      # ── Parse alliance from issue form ──
       - name: Parse deployment inputs
         id: parse
         uses: actions/github-script@v7
         with:
           script: |
-            let version = '';
             let alliance = '';
 
             const body = context.payload.issue.body || '';
-
-            if (context.eventName === 'issue_comment') {
-              // Support: /deploy [version]  — version is optional
-              const commentBody = context.payload.comment.body.trim();
-              const commentVersionMatch = commentBody.match(/^\/deploy\s+(\S+)/);
-              if (commentVersionMatch) version = commentVersionMatch[1];
-            }
-
-            if (!version) {
-              // Fall back to the "Version" field in the issue form body
-              // GitHub issue forms render each field as "### Label\n\nValue"
-              const versionMatch = body.match(/### Version[^\n]*\n+([^\n#]+)/);
-              if (versionMatch) version = versionMatch[1].trim();
-            }
 
             // Read alliance from issue form (supports English and French labels).
             const allianceMatch = body.match(/### (?:Alliance Name|Nom de l'Alliance)[^\n]*\n+([^\n#]+)/i);
@@ -150,29 +124,19 @@ jobs:
               return;
             }
 
-            core.setOutput('version', version);
             core.setOutput('alliance', alliance);
             core.setOutput('alliance_dir', allianceDir);
             core.setOutput('table_prefix', tablePrefix);
 
-            // If a version was explicitly given, make sure it looks like a valid tag.
-            if (version && !/^v?\d+(\.\d+)*(-[a-zA-Z0-9._-]+)?$/.test(version)) {
-              core.setFailed(`Invalid version format: "${version}". Expected a tag such as "4.0.2" or "v4.0.2".`);
-            }
-
-      # ── Download the requested (or latest) release zip from OGSteam/ogspy ──
+      # ── Download latest release zip from OGSteam/ogspy ──
       - name: Download OGSpy release
         id: release
         env:
           GH_TOKEN: ${{ secrets.OGSPY_GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.parse.outputs.version }}"
-
-          if [ -z "$VERSION" ]; then
-            # Prefer the latest published release; fall back to latest draft
-            VERSION=$(gh release list -R OGSteam/ogspy \
-              --exclude-drafts --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
-          fi
+          # Prefer the latest published release; fall back to latest draft
+          VERSION=$(gh release list -R OGSteam/ogspy \
+            --exclude-drafts --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
 
           if [ -z "$VERSION" ]; then
             echo "::error::No published release found in OGSteam/ogspy"
@@ -274,10 +238,7 @@ jobs:
     name: Post result
     needs: deploy
     runs-on: ubuntu-latest
-    if: >-
-      always() &&
-      ((github.event_name == 'issues' && github.event.label.name == 'deploy') ||
-       (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/deploy') && github.event.issue.state == 'open'))
+    if: always() && github.event_name == 'issues' && github.event.label.name == 'deploy'
     steps:
       - name: Comment – success
         if: needs.deploy.result == 'success'

@@ -18,8 +18,6 @@ A deployment is triggered by opening an issue with a specific form, and **requir
 1. Open an issue using the "Deployment Request" template
         ↓
    The "deploy" label is auto-applied → workflow starts automatically
-   — OR —
-   Post a "/deploy [version]" comment on an existing open issue → workflow starts
         ↓
 2. Workflow checks that the trigger author has Write / Admin access
         ↓
@@ -92,7 +90,7 @@ This is what causes the workflow to pause and notify you before deploying.
 3. Color: choose any (e.g. `#0075ca`)
 4. Save
 
-The workflow activates when this exact label is applied to an issue, or when a `/deploy` comment is posted on an open issue.
+The workflow activates when this exact label is applied to an issue.
 
 ---
 
@@ -103,8 +101,7 @@ The workflow activates when this exact label is applied to an issue, or when a `
 1. Click **Issues → New issue**
 2. Select the **"Deployment Request"** template (available in English and French)
 3. Fill in the form:
-   - **Alliance Name**: The name of your alliance (will be used to create folder and database prefix)
-   - **Version**: Optional; leave blank to deploy the latest release
+        - **Alliance Name**: The name of your alliance (used to create folder and database prefix)
 4. Submit — the `deploy` label is auto-applied, which starts the workflow immediately and posts an acknowledgement comment
 
 **Important:** The alliance name will be normalized to create:
@@ -112,22 +109,7 @@ The workflow activates when this exact label is applied to an issue, or when a `
 - A database table prefix (same as folder name)
 - An admin username (the full alliance name as entered)
 
-### Option B — comment command on an existing issue
-
-Post a comment on any **open** deployment-request issue:
-
-```
-/deploy
-```
-
-Optionally include a specific version tag:
-
-```
-/deploy 4.0.2
-```
-
-The workflow starts immediately, just as if the label had been applied.  
-**Option A** checks the **issue author's** permissions; **Option B** checks the **comment author's** permissions. In both cases the actor must have **Write** or **Admin** access to the repository.
+The workflow checks the **issue author's** permissions. The actor must have **Write** or **Admin** access to the repository.
 
 ---
 

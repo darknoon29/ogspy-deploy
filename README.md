@@ -27,7 +27,7 @@ Ce dépôt permet de demander, déployer et mettre à jour OGSpy sans interventi
 - Une instance OGSpy dédiée par alliance
 - Une URL directe: `https://ogspy.fr/<alliance>`
 - Un compte administrateur créé automatiquement
-- Les mises à jour via le même ticket
+- Les mises à jour applicatives gérées par OGSpy
 
 ### Démarrage rapide
 
@@ -52,13 +52,9 @@ Le commentaire final contient:
 Important:
 - Changez le mot de passe immédiatement après la première connexion.
 
-### Mettre à jour une instance
+### Mises à jour
 
-Ajoutez un commentaire sur le ticket ouvert:
-
-```text
-/deploy
-```
+Les mises à jour sont gérées par OGSpy lui-même (routine interne d'upgrade).
 
 ### FAQ rapide (FR)
 
@@ -89,7 +85,7 @@ This repository lets you request, deploy, and update OGSpy without manual server
 - One dedicated OGSpy instance per alliance
 - A direct URL: `https://ogspy.fr/<alliance>`
 - An admin account created automatically
-- Updates through the same issue
+- Application updates managed by OGSpy itself
 
 ### Quick start
 
@@ -114,13 +110,9 @@ The final comment includes:
 Important:
 - Change the password immediately after first login.
 
-### Update an existing instance
+### Updates
 
-Post a comment on the open issue:
-
-```text
-/deploy
-```
+Updates are handled by OGSpy itself (internal upgrade routine).
 
 ### Quick FAQ (EN)
 
