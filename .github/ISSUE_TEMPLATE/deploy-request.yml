@@ -1,5 +1,6 @@
 name: Deployment Request
 description: Request a deployment of OGSpy
+title: "[Deploy] OGSpy Deployment Request"
 labels:
   - deploy
 assignees: []
@@ -12,11 +13,14 @@ body:
         Submitting this form will trigger a deployment workflow.
         **No files will be deployed until the owner manually approves the request.**
 
-  - type: textarea
+  - type: input
     id: alliance
     attributes:
       label: Alliance Name
-      description: The name of the alliance for which the deployment is requested.
+      description: The name of the alliance for which the deployment is requested (letters only, max 50 characters).
       placeholder: "e.g. Galactic Federation"
     validations:
       required: true
+      max_length: 20
+      pattern: "^[A-Za-z ]+$"
+      pattern_error: "The alliance name must contain only letters"

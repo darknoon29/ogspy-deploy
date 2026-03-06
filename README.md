@@ -2,6 +2,8 @@
 
 Repository containing the GitHub Actions workflow that deploys [OGSpy](https://github.com/OGSteam/ogspy) to Infomaniak shared hosting.
 
+Each alliance gets its own isolated deployment in a dedicated folder with a unique database table prefix.
+
 A deployment is triggered by opening an issue with a specific form, and **requires manual approval from the owner** before any files are transferred.
 
 > **Repository visibility:** This repository must be **public** so that any GitHub user can open a deployment-request issue (ticket). The deployment is still fully protected because:
@@ -29,12 +31,15 @@ A deployment is triggered by opening an issue with a specific form, and **requir
         ↓
 6. Workflow downloads the requested OGSpy release from OGSteam/ogspy
         ↓
-7. Files are deployed to Infomaniak via FTPS
+7. Alliance name is sanitized to create a folder name and table prefix
+        ↓
+8. Files are deployed to alliance-specific folder via SSH (rsync)
    (config files, cache, and logs are never overwritten)
         ↓
-8. CLI upgrader runs on the server via SSH: php install/upgrade_cli.php upgrade
+9. If first deployment: CLI installer runs to set up the database
+   Otherwise: CLI upgrader runs to update the installation
         ↓
-9. Result (success / failure / rejected) is posted as a comment and the issue is closed
+10. Result (success / failure / rejected) is posted as a comment and the issue is closed
 ```
 
 ---
@@ -48,13 +53,14 @@ Go to **Settings → Secrets and variables → Actions** and add the following s
 | Secret | Description |
 |---|---|
 | `OGSPY_GITHUB_TOKEN` | Fine-grained PAT with **read** access to releases on `OGSteam/ogspy` |
-| `INFOMANIAK_FTP_HOST` | FTP hostname provided by Infomaniak (e.g. `ftp.clusterXX.hosting.infomaniak.ch`) |
-| `INFOMANIAK_FTP_USER` | FTP username |
-| `INFOMANIAK_FTP_PASSWORD` | FTP password |
-| `INFOMANIAK_DEPLOY_PATH` | Absolute remote path to the OGSpy root (e.g. `/sites/mysite.com/public_html/`) |
-| `INFOMANIAK_SSH_HOST` | SSH hostname (same host or dedicated SSH entry point from Infomaniak panel) |
+| `INFOMANIAK_DEPLOY_PATH` | Absolute remote path to the base directory (e.g. `/sites/mysite.com/public_html/`). Each alliance will get its own subfolder here. |
+| `INFOMANIAK_SSH_HOST` | SSH hostname from Infomaniak panel |
 | `INFOMANIAK_SSH_USER` | SSH username |
 | `INFOMANIAK_SSH_KEY` | SSH **private key** (PEM format, Ed25519 or RSA) |
+| `OGSPY_DB_HOST` | MySQL/MariaDB hostname |
+| `OGSPY_DB_USER` | Database username |
+| `OGSPY_DB_PASSWORD` | Database password |
+| `OGSPY_DB_NAME` | Database name (all alliances share the same database with different table prefixes) |
 
 #### Generating the GitHub PAT (`OGSPY_GITHUB_TOKEN`)
 
@@ -105,9 +111,16 @@ The workflow activates when this exact label is applied to an issue, or when a `
 ### Option A — open a new issue (recommended for new requests)
 
 1. Click **Issues → New issue**
-2. Select the **"Deployment Request"** template
-3. Fill in the form (version is optional; leave blank to deploy the latest release)
+2. Select the **"Deployment Request"** template (available in English and French)
+3. Fill in the form:
+   - **Alliance Name**: The name of your alliance (will be used to create folder and database prefix)
+   - **Version**: Optional; leave blank to deploy the latest release
 4. Submit — the `deploy` label is auto-applied, which starts the workflow immediately and posts an acknowledgement comment
+
+**Important:** The alliance name will be normalized to create:
+- A folder name (lowercase letters only, e.g., "Elite Alliance" → "elitealliance")
+- A database table prefix (same as folder name)
+- An admin username (the full alliance name as entered)
 
 ### Option B — comment command on an existing issue
 
@@ -134,9 +147,31 @@ The workflow starts immediately, just as if the label had been applied.
 
 ---
 
+## Alliance-specific deployments
+
+Each alliance gets:
+- **Dedicated folder**: `<INFOMANIAK_DEPLOY_PATH>/<alliance-name>/`
+- **Unique table prefix**: Database tables use `<alliance-name>_` prefix
+- **Separate configuration**: Each instance has its own `config/id.php`
+- **Admin credentials**:
+  - Username: Alliance name (as entered in the form)
+  - Password: `ogsteam` (default, should be changed after first login)
+
+### First deployment
+When deploying a new alliance, the workflow automatically:
+1. Creates the alliance folder
+2. Deploys OGSpy files
+3. Runs the CLI installer to set up the database
+4. Creates the admin account
+
+### Subsequent deployments
+For existing alliances:
+1. Updates files via rsync
+2. Runs the CLI upgrader to apply database migrations
+
 ## Files protected from overwrite
 
-The FTP deploy step **never overwrites** the following remote files (they contain instance-specific configuration or runtime data):
+The rsync deploy step **never overwrites** the following remote files (they contain instance-specific configuration or runtime data):
 
 - `config/id.php` — database connection
 - `config/key.php` — encryption key
@@ -152,7 +187,9 @@ The FTP deploy step **never overwrites** the following remote files (they contai
 | Symptom | Likely cause |
 |---|---|
 | Download step fails with "No release found" | No published (non-draft) release exists on OGSteam/ogspy; publish the draft first |
-| FTP step fails with auth error | Check `INFOMANIAK_FTP_HOST`, `INFOMANIAK_FTP_USER`, `INFOMANIAK_FTP_PASSWORD` |
-| SSH step fails with "Permission denied" | Public key not added to Infomaniak, or wrong `INFOMANIAK_SSH_USER` |
+| rsync step fails with "Permission denied" | Public key not added to Infomaniak, or wrong `INFOMANIAK_SSH_USER` |
+| Install CLI fails with missing secrets | Check that `OGSPY_DB_HOST`, `OGSPY_DB_USER`, `OGSPY_DB_PASSWORD`, `OGSPY_DB_NAME` are properly configured |
+| Install CLI fails with DB connection error | Verify database credentials and that the database exists |
 | `upgrade_cli.php` returns an error | Check the full SSH output in the Actions log; may be a PHP version or DB connectivity issue |
+| Alliance name validation fails | Alliance name must contain at least one letter (numbers and special characters are removed) |
 | Approval notification not received | Ensure you are set as a required reviewer on the `infomaniak-production` environment |
