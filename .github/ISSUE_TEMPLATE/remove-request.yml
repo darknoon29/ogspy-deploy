@@ -1,0 +1,28 @@
+name: Removal Request
+description: Request the removal of an OGSpy instance
+title: "[Remove] OGSpy Removal Request"
+labels:
+  - remove
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🗑️ OGSpy Removal Request
+
+        Submitting this form will trigger a removal workflow.
+        **No files will be deleted until the owner manually approves the request.**
+
+        > ⚠️ This action is **irreversible**: all files and database tables for this alliance will be permanently deleted.
+
+  - type: input
+    id: alliance
+    attributes:
+      label: Alliance Name
+      description: The exact name of the alliance to remove (must match the name used during deployment).
+      placeholder: "e.g. Galactic Federation"
+    validations:
+      required: true
+      max_length: 20
+      pattern: "^[A-Za-z ]+$"
+      pattern_error: "The alliance name must contain only letters"

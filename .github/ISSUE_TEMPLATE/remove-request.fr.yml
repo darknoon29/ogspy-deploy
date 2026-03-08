@@ -1,0 +1,28 @@
+name: Demande de suppression
+description: Demander la suppression d'une instance OGSpy
+title: "[Suppression] Demande de suppression OGSpy"
+labels:
+  - remove
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🗑️ Demande de suppression OGSpy
+
+        La soumission de ce formulaire déclenchera un workflow de suppression.
+        **Aucun fichier ne sera supprimé tant que le propriétaire n'aura pas approuvé manuellement la demande.**
+
+        > ⚠️ Cette action est **irréversible** : tous les fichiers et tables de base de données de cette alliance seront définitivement supprimés.
+
+  - type: input
+    id: alliance
+    attributes:
+      label: Nom de l'Alliance
+      description: Le nom exact de l'alliance à supprimer (doit correspondre au nom utilisé lors du déploiement).
+      placeholder: "ex. Fédération Galactique"
+    validations:
+      required: true
+      max_length: 20
+      pattern: "^[A-Za-z ]+$"
+      pattern_error: "Le nom de l'alliance ne doit contenir que des lettres"
