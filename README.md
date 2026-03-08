@@ -56,6 +56,21 @@ Important:
 
 Les mises à jour sont gérées par OGSpy lui-même (routine interne d'upgrade).
 
+### Option de suppression
+
+Pour supprimer une instance existante:
+
+1. Ouvrez `Issues -> New issue` dans ce dépôt.
+2. Choisissez le modèle `Demande de suppression`.
+3. Renseignez le champ `Nom de l'Alliance` avec le nom exact utilisé lors du déploiement.
+4. Envoyez le ticket.
+5. Attendez la validation manuelle du propriétaire avant suppression effective.
+
+Important:
+- L'action est irréversible.
+- Le workflow supprime les fichiers de l'instance et les tables de base de données associées.
+- Si l'alliance n'existe pas côté serveur, la suppression échoue et rien n'est supprimé.
+
 ### FAQ rapide (FR)
 
 Q: Qui peut lancer un déploiement?
@@ -116,6 +131,21 @@ Important:
 ### Updates
 
 Updates are handled by OGSpy itself (internal upgrade routine).
+
+### Delete option
+
+To remove an existing instance:
+
+1. Open `Issues -> New issue` in this repository.
+2. Select the `Removal Request` template.
+3. Fill the `Alliance Name` field with the exact name used during deployment.
+4. Submit the issue.
+5. Wait for the owner's manual approval before any deletion happens.
+
+Important:
+- This action is irreversible.
+- The workflow deletes both the instance files and related database tables.
+- If the alliance folder does not exist on the server, the removal fails and nothing is deleted.
 
 ### Quick FAQ (EN)
 
